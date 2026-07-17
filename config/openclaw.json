@@ -21,7 +21,10 @@
         "primary": "anthropic/claude-opus-4-8",
         "fallbacks": ["hermes/hermes"]
       },
-      "workspace": "/app/workspaces/openclaw"
+      "workspace": "/app/workspaces/openclaw",
+      "compaction": {
+        "reserveTokensFloor": 20000
+      }
     }
   },
   "gateway": {

@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "title": "CompactAgentStep",
+  "description": "Minimize output token consumption",
+  "properties": {
+    "thought": {
+      "type": "string",
+      "description": "Short reasoning only"
+    },
+    "tool_call": {
+      "type": ["object", "null"]
+    },
+    "plan_next": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "context_summary": {
+      "type": "string"
+    }
+  },
+  "required": ["thought","tool_call","plan_next"],
+  "additionalProperties": false
+}

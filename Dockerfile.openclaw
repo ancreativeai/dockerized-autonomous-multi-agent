@@ -1,0 +1,43 @@
+# OpenClaw orchestrator + multi-agent Python stack (LangGraph, GraphRAG, Chroma,
+# sentence-transformers) + Node CLIs (OpenClaw, Claude Code). No host deps needed.
+FROM node:22-bookworm
+
+# ---- OS dependencies ----
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 python3-venv python3-dev build-essential \
+    curl ca-certificates git jq nano sqlite3 procps \
+ && rm -rf /var/lib/apt/lists/*
+
+# ---- Node: OpenClaw CLI + official Anthropic Claude Code CLI ----
+RUN npm install -g openclaw @anthropic-ai/claude-code \
+ && npm cache clean --force
+
+# ---- Python virtualenv with the full agent stack (CPU-only torch) ----
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+RUN pip install --no-cache-dir --upgrade pip \
+ && pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu \
+ && pip install --no-cache-dir \
+    anthropic \
+    langgraph \
+    langgraph-checkpoint-sqlite \
+    langchain-core \
+    chromadb \
+    sentence-transformers \
+    networkx \
+    prometheus-client \
+    requests \
+    jsonschema \
+    pyyaml
+
+# Pre-bake the embedding model into the image so runtime needs no network access
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
+WORKDIR /app
+COPY agents/ /app/agents/
+COPY scripts/init-skills.sh /app/init-skills.sh
+RUN chmod +x /app/init-skills.sh
+
+CMD ["/app/init-skills.sh"]

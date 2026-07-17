@@ -1,0 +1,31 @@
+{
+  "locked": true,
+  "token_alert_threshold_pct": 80,
+  "audit_log_retention_days": 30,
+  "strict_sandbox": true,
+  "constrained_json_output": true,
+  "prompt_compression": true,
+  "context_pruning": true,
+  "forbidden_actions": [
+    "rm -rf /",
+    "rm -rf /*",
+    "mkfs",
+    "dd if=",
+    ":(){ :|:& };:",
+    "curl | sh",
+    "curl | bash",
+    "wget | sh",
+    "shutdown",
+    "reboot",
+    "sudo ",
+    "> /dev/sd",
+    "chmod -R 777 /",
+    "DROP TABLE",
+    "DELETE FROM"
+  ],
+  "routing": {
+    "planner": "claude",
+    "workers": "hermes",
+    "note": "Locked at bootstrap: Claude is used exclusively for orchestration/planning; all secondary task workers run on local Hermes to minimise paid API calls."
+  }
+}

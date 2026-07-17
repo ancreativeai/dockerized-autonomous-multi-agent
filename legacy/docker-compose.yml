@@ -1,0 +1,51 @@
+networks:
+  agent-net:
+    driver: bridge
+
+volumes:
+  prom-data:
+
+services:
+  # Main OpenClaw Orchestrator (Local Dev Clean Version)
+  openclaw-stack:
+    build: .
+    container_name: openclaw-full-stack
+    volumes:
+   #   - ./openclaw:/app
+      - ./openclaw-data:/root/.openclaw
+      - ./obsidian-vault:/app/obsidian-vault
+      - ./workspaces:/app/workspaces
+      - ./prompts:/app/prompts
+      - ./schemas:/app/schemas
+    env_file: ./.env
+    environment:
+      - OPENCLAW_PROFILE=full
+      - TOKEN_MONITOR_ENABLED=true
+      - TOKEN_ALERT_THRESHOLD=80
+      - WATCHDOG_AUDIT_ENABLE=true
+      - AUDIT_LOG_RETENTION_DAYS=30
+      - MAX_CONTEXT_TOKENS=16384
+      - ENABLE_PROMPT_COMPRESSION=true
+      - ENABLE_CONSTRAINED_JSON=true
+      - ENABLE_CONTEXT_SUMMARY_PRUNING=true
+      - PREFIX_CACHE_HINT=true
+      - TOKEN_MONITOR_URL=http://token-monitor:9090
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      - token-monitor
+    networks:
+      - agent-net
+
+  # Token Cost Monitor (Prometheus)
+  token-monitor:
+    image: prom/prometheus:latest
+    container_name: token-monitor
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prom-data:/prometheus
+    networks:
+      - agent-net

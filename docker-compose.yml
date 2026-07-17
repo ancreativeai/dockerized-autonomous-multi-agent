@@ -1,0 +1,87 @@
+name: openclaw-full-stack
+
+networks:
+  agent-net:
+    driver: bridge
+
+volumes:
+  chroma-memory:      # long-term vector embedding cache (persists across restarts)
+  langgraph-state:    # LangGraph checkpoints + agent session state
+  graphrag-graph:     # knowledge graph storage built from the Obsidian vault
+  prom-data:          # Prometheus TSDB
+
+services:
+  # ── OpenClaw orchestration control plane + LangGraph/GraphRAG agent service ──
+  openclaw-stack:
+    build:
+      context: .
+      dockerfile: Dockerfile.openclaw
+    container_name: openclaw-stack
+    env_file: .env
+    environment:
+      - HERMES_BASE_URL=http://hermes-llm:8080/v1
+      - PROMETHEUS_URL=http://prometheus-monitor:9090
+    volumes:
+      # ⚠ The ./openclaw bind mount is DISABLED by default. Mounting an empty
+      # host folder over the container image destroys the built-in files and
+      # causes the "/app/init-skills.sh: No such file or directory" error.
+      # For live OpenClaw source editing, first clone the source:
+      #     git clone https://github.com/openclaw/openclaw ./openclaw
+      # then uncomment the next line (it mounts BESIDE /app, never over it):
+      #   - ./openclaw:/opt/openclaw-src
+      - ./openclaw-data:/root/.openclaw          # OpenClaw persistent state/config
+      - ./obsidian-vault:/app/obsidian-vault     # shared knowledge base (all agents)
+      - ./workspaces:/app/workspaces             # per-agent isolated workspaces
+      - ./prompts:/app/prompts:ro                # editable prompt templates
+      - ./schemas:/app/schemas:ro                # constrained-JSON output schemas
+      - ./config:/app/config:ro                  # locked guardrail + routing config
+      - ./audit-logs:/app/audit-logs             # watchdog audit trail (30-day retention)
+      - chroma-memory:/data/memory
+      - langgraph-state:/data/state
+      - graphrag-graph:/data/graph
+    ports:
+      - "18789:18789"   # OpenClaw gateway
+      - "9091:9091"     # agent-service Prometheus metrics
+    restart: unless-stopped
+    depends_on:
+      hermes-llm:
+        condition: service_started   # agent service retries until Hermes is up
+      prometheus-monitor:
+        condition: service_started
+    networks: [agent-net]
+
+  # ── Local Hermes 3 worker LLM (llama.cpp server, CPU, auto-quant by RAM) ──
+  hermes-llm:
+    build:
+      context: .
+      dockerfile: Dockerfile.hermes
+    container_name: hermes-llm
+    env_file: .env
+    volumes:
+      - ./hermes:/models                         # GGUF model cache (survives rebuilds)
+    ports:
+      - "8081:8080"    # host access for testing; agents use hermes-llm:8080 internally
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 10g
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 200
+      start_period: 600s   # generous: first boot downloads the ~4.9GB model
+    networks: [agent-net]
+
+  # ── Prometheus metrics monitor ──
+  prometheus-monitor:
+    image: prom/prometheus:latest
+    container_name: prometheus-monitor
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prom-data:/prometheus
+    restart: unless-stopped
+    networks: [agent-net]

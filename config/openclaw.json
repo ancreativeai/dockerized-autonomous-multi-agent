@@ -1,0 +1,31 @@
+{
+  "models": {
+    "providers": {
+      "hermes": {
+        "baseUrl": "http://hermes-llm:8080/v1",
+        "api": "openai-completions",
+        "apiKey": "local-no-key",
+        "models": [
+          {
+            "id": "hermes",
+            "name": "Hermes 3 Llama 3.1 8B (local llama.cpp)",
+            "contextWindow": 8192
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-opus-4-8",
+        "fallbacks": ["hermes/hermes"]
+      },
+      "workspace": "/app/workspaces/openclaw"
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local"
+  }
+}

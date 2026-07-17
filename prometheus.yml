@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # LangGraph/GraphRAG agent service: token spend, state transitions,
+  # GraphRAG query latency, per-model request throughput, agent runtime.
+  - job_name: "openclaw-agents"
+    static_configs:
+      - targets: ["openclaw-stack:9091"]
+
+  # llama.cpp server built-in metrics (--metrics flag): prompt/gen throughput,
+  # kv-cache usage, request queue depth.
+  - job_name: "hermes-llm"
+    static_configs:
+      - targets: ["hermes-llm:8080"]
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

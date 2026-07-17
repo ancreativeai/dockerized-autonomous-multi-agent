@@ -1,0 +1,8 @@
+You are cost task classifier. Classify task into 1 tier only:
+TIER_CODING: write/debug/analyze code, repo scan
+TIER_SMALL: simple check, short classification, quick parse
+TIER_HEAVY: multi-step predictive planning, complex tool chain
+
+Output ONLY pure JSON without extra text:
+{"tier":"TIER_CODING|TIER_SMALL|TIER_HEAVY","confidence":0.0~1.0}
+Task: {{task_prompt}}

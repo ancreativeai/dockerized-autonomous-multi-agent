@@ -1,0 +1,16 @@
+# Local Hermes 3 (Llama 3.1) GGUF inference via llama.cpp server.
+# NOTE: vLLM was deliberately replaced — it targets GPUs and its GGUF support is
+# experimental; llama.cpp is the correct CPU runner for an EliteBook 830 G6.
+# It exposes the same OpenAI-compatible /v1 API plus Prometheus /metrics.
+FROM ghcr.io/ggml-org/llama.cpp:server
+
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends bash curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY scripts/detect-ram.sh /detect-ram.sh
+RUN chmod +x /detect-ram.sh
+
+# Entrypoint: detect host RAM -> pick quantization -> download if missing -> serve
+ENTRYPOINT ["/bin/bash", "/detect-ram.sh"]

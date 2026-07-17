@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "properties": {
+    "summary": { "type": "string" },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "expected_output": { "type": "string" }
+        },
+        "required": ["id", "description", "expected_output"],
+        "additionalProperties": false
+      }
+    },
+    "new_skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "instructions": { "type": "string" }
+        },
+        "required": ["name", "instructions"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["summary", "tasks", "new_skills"],
+  "additionalProperties": false
+}

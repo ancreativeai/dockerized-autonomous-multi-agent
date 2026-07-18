@@ -1,4 +1,4 @@
-# OpenClaw Full Stack
+# Dockerized-autonomous-multi-agent
 
 A fully Dockerized, self-contained **autonomous multi-agent AI stack** that runs on modest CPU-only hardware. Built and validated on an HP EliteBook 830 G6 (Intel i5-8365U, 16 GB RAM, no GPU) running Ubuntu/Linux Mint.
 

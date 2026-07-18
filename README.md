@@ -28,19 +28,21 @@ One `docker compose up -d` gives you an orchestrated agent system with a paid fr
   (planner: Claude)        (shared knowledge base, agent I/O)
 ```
 
-**Hybrid LLM routing, locked at bootstrap:** Claude (Opus 4.8, adaptive thinking, constrained JSON output) is used *exclusively* for planning and orchestration; all worker tasks run on the free local Hermes model to minimize paid API calls. Without an API key the planner gracefully falls back to Hermes.
+**Hybrid LLM routing, locked at bootstrap:** the gateway defaults to a **zero-cost model chain** — Nemotron 3 Super 120B (`:free` via OpenRouter) → Llama 3.3 70B (`:free`) → local Hermes 8B — so nothing spends API credit automatically. Paid frontier models (Claude via `ANTHROPIC_API_KEY`, or any OpenRouter model) stay available as an explicit per-session choice. The Python agent service uses Claude for planning when a key is present and free/local models otherwise; workers always run local Hermes.
 
 **The agent loop:** drop a goal file into `workspaces/inbox/` → the LangGraph pipeline (`plan → work → report`) decomposes it, executes tasks on a parallel worker pool with GraphRAG-retrieved context, and writes a markdown report to `workspaces/openclaw/reports/` and back into the vault, where it gets re-ingested. When idle, the loop runs Hermes-only vault-maintenance tasks on a timer.
 
 ## Quick start
 
 ```bash
-git clone git@github.com:ancreativeai/openclaw-full-stack.git
-cd openclaw-full-stack
+git clone git@github.com:ancreativeai/dockerized-autonomous-multi-agent.git
+cd dockerized-autonomous-multi-agent
 cp .env.example .env
 # edit .env:
-#   ANTHROPIC_API_KEY=sk-ant-...              (optional but recommended)
 #   OPENCLAW_GATEWAY_TOKEN=$(openssl rand -hex 24)   (required)
+#   OPENROUTER_API_KEY=sk-or-...              (recommended: unlocks free 120B/70B models)
+#   ANTHROPIC_API_KEY=sk-ant-...              (optional: Claude planning)
+#   LANGSMITH_API_KEY=lsv2_...                (optional: LangGraph run tracing)
 docker compose up -d
 ```
 
@@ -50,8 +52,11 @@ First boot downloads the Hermes GGUF model (~4.9 GB, resumable, cached in `herme
 |---|---|
 | OpenClaw gateway UI | http://localhost:18789 (token from `.env`) |
 | Hermes chat (llama.cpp) | http://localhost:8081 |
+| Grafana — "Agent Stack Mission Metrics" | http://localhost:3000 (anonymous viewer) |
+| Knowledge graph (interactive) + reports + vault | http://localhost:8090 |
 | Prometheus | http://localhost:9090 |
-| Knowledge graph view | `workspaces/openclaw/knowledge-graph.html` |
+
+With `LANGSMITH_API_KEY` set, every LangGraph run (plan → work → report, per-node I/O and timings) is traced to [LangSmith](https://smith.langchain.com) under the `openclaw-full-stack` project.
 
 ## Components
 
@@ -128,6 +133,16 @@ curl -s localhost:9091/metrics | grep llm_tokens_total   # spend check
 - The `./openclaw` bind mount in `docker-compose.yml` is **disabled by default** — mounting an empty folder over the image breaks it. See the comment in the compose file for live-source development.
 - vLLM was deliberately replaced with llama.cpp: vLLM targets GPUs; llama.cpp is the correct engine for CPU-only machines.
 - `.env`, the model cache, audit logs, and your vault are gitignored — nothing sensitive or bulky leaves your machine.
+
+## Cloud deployment (VPS over Tailscale)
+
+The stack runs 24/7 on any 16 GB VPS with zero public exposure:
+
+1. VPS prerequisites: Docker + Compose, `tailscale up` (joins your tailnet), provider firewall allowing **only SSH** inbound — every service is then reachable exclusively via the tailnet IP.
+2. Clone the repo, fill `.env`, `docker compose up -d`.
+3. **Auto-deploy:** `.github/workflows/deploy.yml` ships every push to the default branch to the VPS over Tailscale SSH. It stays dormant until these repo secrets exist: `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` (Tailscale OAuth client, `auth_keys` scope, `tag:ci`), `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.
+
+Note: Hetzner and most providers bill stopped servers — a VPS is either running or deleted; the repo makes rebuilding a fresh one a ~20-minute job.
 
 ## License
 

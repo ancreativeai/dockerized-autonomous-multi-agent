@@ -1,0 +1,65 @@
+{
+  "uid": "agent-stack",
+  "title": "Agent Stack Mission Metrics",
+  "timezone": "browser",
+  "refresh": "10s",
+  "time": { "from": "now-6h", "to": "now" },
+  "schemaVersion": 39,
+  "panels": [
+    {
+      "id": 1, "type": "gauge", "title": "Paid Token Budget Used",
+      "gridPos": { "h": 7, "w": 5, "x": 0, "y": 0 },
+      "targets": [{ "expr": "token_budget_spend_pct", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100,
+        "thresholds": { "mode": "absolute", "steps": [
+          { "color": "green", "value": null },
+          { "color": "yellow", "value": 60 },
+          { "color": "red", "value": 80 } ] } }, "overrides": [] }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Knowledge Graph",
+      "gridPos": { "h": 7, "w": 5, "x": 5, "y": 0 },
+      "targets": [
+        { "expr": "graphrag_graph_nodes", "legendFormat": "nodes", "refId": "A" },
+        { "expr": "graphrag_graph_edges", "legendFormat": "edges", "refId": "B" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "none" }, "overrides": [] }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Agent Service Uptime",
+      "gridPos": { "h": 7, "w": 5, "x": 10, "y": 0 },
+      "targets": [{ "expr": "agent_service_uptime_seconds", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Goals Completed",
+      "gridPos": { "h": 7, "w": 4, "x": 15, "y": 0 },
+      "targets": [{ "expr": "sum(agent_goals_total)", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "none", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] }
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "LLM Tokens / min (by model)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 },
+      "targets": [{ "expr": "sum by (model, direction) (rate(llm_tokens_total[5m])) * 60", "legendFormat": "{{model}} {{direction}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "fillOpacity": 15 } }, "overrides": [] }
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "LLM Requests / min",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 },
+      "targets": [{ "expr": "sum by (model, status) (rate(llm_requests_total[5m])) * 60", "legendFormat": "{{model}} {{status}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "fillOpacity": 15 } }, "overrides": [] }
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "LangGraph Node Transitions / min",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+      "targets": [{ "expr": "sum by (node) (rate(langgraph_state_transitions_total[5m])) * 60", "legendFormat": "{{node}}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "none", "custom": { "fillOpacity": 25, "drawStyle": "bars" } }, "overrides": [] }
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "GraphRAG Query Latency (avg s)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+      "targets": [{ "expr": "rate(graphrag_query_seconds_sum[5m]) / rate(graphrag_query_seconds_count[5m])", "legendFormat": "avg latency", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "fillOpacity": 15 } }, "overrides": [] }
+    }
+  ]
+}

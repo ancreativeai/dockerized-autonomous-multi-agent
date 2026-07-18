@@ -49,6 +49,10 @@ else
   log "WARNING: openclaw CLI not found — continuing with agent-service only"
 fi
 
+# Keep workspaces/vault world-readable so the graph-viewer (unprivileged
+# nginx) can serve them — OpenClaw creates its workspace dirs 700.
+chmod -R a+rX /app/workspaces /app/obsidian-vault 2>/dev/null || true
+
 # ── 4. Persistent autonomous multi-agent loop ──
 log "starting agent-service: planner=Claude (${CLAUDE_MODEL:-claude-opus-4-8}), workers=Hermes x${WORKER_AGENT_COUNT:-2}"
 exec python /app/agents/main.py

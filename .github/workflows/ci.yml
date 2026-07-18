@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [dockerized-autonomous-multi-agent]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shell script syntax
+        run: bash -n scripts/detect-ram.sh scripts/init-skills.sh
+
+      - name: Python syntax
+        run: python3 -m py_compile agents/*.py
+
+      - name: JSON configs valid
+        run: |
+          python3 - <<'EOF'
+          import json, glob
+          for f in glob.glob("config/*.json") + glob.glob("schemas/*.json"):
+              json.load(open(f))
+              print("OK", f)
+          EOF
+
+      - name: docker compose config valid
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+
+      - name: Dockerfiles lint (hadolint, non-blocking)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile.openclaw
+          no-fail: true

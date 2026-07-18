@@ -8,6 +8,7 @@ Continuously (every GRAPHRAG_REINDEX_SECONDS) ingests the Obsidian vault:
 
 Queries do hybrid retrieval: vector top-k + 1-hop graph-neighbourhood expansion.
 """
+import json
 import os
 import pathlib
 import re
@@ -86,6 +87,7 @@ class VaultIndexer:
             GRAPH_EDGES.set(self.graph.number_of_edges())
             if changed or stale:
                 nx.write_graphml(self.graph, GRAPH_DIR / "vault.graphml")
+                self._export_html()
         LAST_INDEX_TS.set(time.time())
         if changed:
             self.guard.audit("graphrag_index_pass", files_reindexed=len(changed))
@@ -114,6 +116,33 @@ class VaultIndexer:
         self._collection.upsert(
             ids=ids, embeddings=vectors, documents=chunks,
             metadatas=[{"note": title, "rel": rel}] * len(chunks))
+
+    def _export_html(self):
+        """Interactive knowledge-graph view, regenerated every index pass.
+        Open workspaces/openclaw/knowledge-graph.html in a browser."""
+        nodes = [{"id": n, "label": n,
+                  "group": d.get("kind", "note"),
+                  "shape": "dot", "size": 8 + 2 * self.graph.degree(n)}
+                 for n, d in self.graph.nodes(data=True)]
+        edges = [{"from": u, "to": v, "title": d.get("rel_type", "")}
+                 for u, v, d in self.graph.edges(data=True)]
+        html = (
+            "<!doctype html><html><head><meta charset='utf-8'>"
+            "<title>Vault knowledge graph</title>"
+            "<script src='https://unpkg.com/vis-network/standalone/umd/"
+            "vis-network.min.js'></script>"
+            "<style>html,body,#g{height:100%;margin:0;background:#1e1e2e}</style>"
+            "</head><body><div id='g'></div><script>"
+            f"var nodes=new vis.DataSet({json.dumps(nodes)});"
+            f"var edges=new vis.DataSet({json.dumps(edges)});"
+            "new vis.Network(document.getElementById('g'),{nodes:nodes,edges:edges},"
+            "{nodes:{font:{color:'#cdd6f4'}},edges:{color:{opacity:0.4}},"
+            "groups:{tag:{color:'#f9e2af'},note:{color:'#89b4fa'}},"
+            "physics:{solver:'forceAtlas2Based',stabilization:{iterations:60}}});"
+            "</script></body></html>")
+        out = pathlib.Path("/app/workspaces/openclaw/knowledge-graph.html")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(html)
 
     # ── retrieval ──
     def query(self, text, k=None):

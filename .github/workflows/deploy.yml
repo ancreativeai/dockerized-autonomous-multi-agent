@@ -10,7 +10,7 @@
 #                                         VPS user's authorized_keys
 #
 # VPS prerequisites: docker + compose, tailscale joined to the same tailnet,
-# and the repo cloned at ~/openclaw-full-stack with a filled .env.
+# and the repo cloned at ~/dockerized-autonomous-multi-agent with a filled .env.
 name: Deploy
 
 on:
@@ -55,7 +55,7 @@ jobs:
           ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=accept-new \
               "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" <<'REMOTE'
             set -euo pipefail
-            cd ~/openclaw-full-stack
+            cd ~/dockerized-autonomous-multi-agent
             git fetch origin
             git reset --hard origin/dockerized-autonomous-multi-agent
             docker compose build --pull

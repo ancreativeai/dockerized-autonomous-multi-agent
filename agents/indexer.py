@@ -40,6 +40,7 @@ class VaultIndexer:
         self.graph = nx.DiGraph()
         self._mtimes = {}
         self._lock = threading.Lock()
+        self._init_lock = threading.Lock()
         self._embedder = None
         self._collection = None
         GRAPH_DIR.mkdir(parents=True, exist_ok=True)
@@ -51,14 +52,20 @@ class VaultIndexer:
                 self.graph = nx.DiGraph()
 
     def _lazy_init(self):
-        if self._embedder is None:
-            from sentence_transformers import SentenceTransformer
-            self._embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-        if self._collection is None:
-            import chromadb
-            client = chromadb.PersistentClient(path=CHROMA_DIR)
-            self._collection = client.get_or_create_collection(
-                "vault", metadata={"hnsw:space": "cosine"})
+        # Serialized: the indexer thread and the agent loop both call this, and a
+        # single Chroma PersistentClient must not be created twice on one path
+        # (raises KeyError on the shared-system cache in chromadb >= 1.5).
+        if self._embedder is not None and self._collection is not None:
+            return
+        with self._init_lock:
+            if self._embedder is None:
+                from sentence_transformers import SentenceTransformer
+                self._embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+            if self._collection is None:
+                import chromadb
+                client = chromadb.PersistentClient(path=CHROMA_DIR)
+                self._collection = client.get_or_create_collection(
+                    "vault", metadata={"hnsw:space": "cosine"})
 
     # ── indexing ──
     def index_pass(self):

@@ -1,4 +1,4 @@
-name: openclaw-full-stack
+name: dockerized-autonomous-multi-agent
 
 networks:
   agent-net:

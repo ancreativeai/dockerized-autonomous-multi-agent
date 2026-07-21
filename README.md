@@ -48,13 +48,16 @@ docker compose up -d
 
 First boot downloads the Hermes GGUF model (~4.9 GB, resumable, cached in `hermes/` thereafter). Then:
 
-| Interface | URL |
-|---|---|
-| OpenClaw gateway UI | http://localhost:18789 (token from `.env`) |
-| Hermes chat (llama.cpp) | http://localhost:8081 |
-| Grafana — "Agent Stack Mission Metrics" | http://localhost:3000 (anonymous viewer) |
-| Knowledge graph (interactive) + reports + vault | http://localhost:8090 |
-| Prometheus | http://localhost:9090 |
+| Interface | URL (local) | Port |
+|---|---|---|
+| OpenClaw gateway UI | http://localhost:18789 (token from `.env`) | 18789 |
+| Hermes chat (llama.cpp) | http://localhost:8081 | 8081 |
+| Grafana — "Agent Stack Mission Metrics" | http://localhost:3000 (anonymous viewer) | 3000 |
+| Knowledge graph (interactive) + reports + vault | http://localhost:8090 | 8090 |
+| Prometheus | http://localhost:9090 | 9090 |
+
+> **⚠️ These `localhost` URLs only apply when the stack runs on the same machine as your browser.**
+> On a **VPS reached over Tailscale (the recommended production setup)** the host is **not** `localhost` — it is the server's tailnet address, which is **different for every server and changes if you replace it.** Replace `localhost` with your VPS's Tailscale IP or MagicDNS name, e.g. `http://100.x.y.z:3000` or `http://my-vps:3000`. See **[Cloud deployment (VPS over Tailscale)](#cloud-deployment-vps-over-tailscale)** below for how to find it.
 
 With `LANGSMITH_API_KEY` set, every LangGraph run (plan → work → report, per-node I/O and timings) is traced to [LangSmith](https://smith.langchain.com) under the `openclaw-full-stack` project.
 
@@ -136,13 +139,59 @@ curl -s localhost:9091/metrics | grep llm_tokens_total   # spend check
 
 ## Cloud deployment (VPS over Tailscale)
 
-The stack runs 24/7 on any 16 GB VPS with zero public exposure:
+**This is the recommended production setup.** The stack runs 24/7 on any 16 GB VPS, reachable only over your private [Tailscale](https://tailscale.com) network — nothing is exposed to the public internet. The design goal is **disposable servers**: this Git repo is the single source of truth, so any server is a throwaway runtime you can delete and recreate in ~20 minutes.
 
-1. VPS prerequisites: Docker + Compose, `tailscale up` (joins your tailnet), provider firewall allowing **only SSH** inbound — every service is then reachable exclusively via the tailnet IP.
-2. Clone the repo, fill `.env`, `docker compose up -d`.
-3. **Auto-deploy:** `.github/workflows/deploy.yml` ships every push to the default branch to the VPS over Tailscale SSH. It stays dormant until these repo secrets exist: `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET` (Tailscale OAuth client, `auth_keys` scope, `tag:ci`), `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.
+### Why Tailscale (and why the URLs are dynamic)
 
-Note: Hetzner and most providers bill stopped servers — a VPS is either running or deleted; the repo makes rebuilding a fresh one a ~20-minute job.
+The provider firewall allows **only SSH (port 22)** inbound. All service ports (18789, 8081, 3000, 8090, 9090) are therefore **unreachable from the public internet** — you reach them across your tailnet instead. Tailscale connects *outbound* from the server, so no inbound ports are opened for it.
+
+Consequence: **your service URLs are dynamic.** They are `http://<this server's tailnet address>:<port>` — and that address is unique to each machine and **changes whenever you replace the server.** There is no fixed URL to hard-code; always derive it from the current server (below).
+
+### First-time setup
+
+1. **Create a VPS** — any provider, 16 GB RAM, Ubuntu 24.04, x86 or ARM. Add your SSH public key at creation. Attach a firewall allowing **only inbound SSH**.
+2. **On the server**, install Docker + Compose and join your tailnet:
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   curl -fsSL https://tailscale.com/install.sh | sh && sudo tailscale up
+   ```
+3. **Deploy the stack:**
+   ```bash
+   git clone https://github.com/ancreativeai/dockerized-autonomous-multi-agent.git
+   cd dockerized-autonomous-multi-agent
+   cp .env.example .env   # set OPENCLAW_GATEWAY_TOKEN (required) + any API keys
+   docker compose up -d
+   ```
+4. **Find your service URLs** — run this on the server:
+   ```bash
+   tailscale ip -4        # e.g. 100.107.239.95  → gateway at http://100.107.239.95:18789
+   ```
+   Or enable [MagicDNS](https://tailscale.com/kb/1081/magicdns) in the Tailscale admin console and use the server's name instead of the IP (e.g. `http://my-vps:3000`) — this is nicer because the name is stable even if the IP changes. Any device on **your** tailnet (laptop, phone) can open these; nobody else can.
+
+### Replacing a server (delete + recreate)
+
+Because the repo holds everything and only runtime state lives on the server, swapping servers is routine — do this to change provider/region, resize, or recover:
+
+1. **(Optional) preserve agent state** from the old server — the knowledge graph, LangGraph checkpoints, and vector memory live in Docker named volumes:
+   ```bash
+   docker run --rm -v dockerized-autonomous-multi-agent_graphrag-graph:/v -v $PWD:/out alpine tar czf /out/state.tgz -C /v .
+   # repeat for _langgraph-state and _chroma-memory, then scp the tarballs off
+   ```
+   (Skip this to start fresh — the vault re-indexes itself from `obsidian-vault/` on first boot anyway.)
+2. **Delete the old server** in the provider console (most providers, incl. Hetzner, **bill stopped servers — only deletion stops charges**), and remove its now-offline node from the Tailscale admin console.
+3. **Run First-time setup** on the new server. Restore any tarballs from step 1 into the matching volumes before `docker compose up -d`.
+4. **Update your bookmarks / GitHub deploy secrets** with the new server's tailnet address (see below) — this is the only place the old URL lived.
+
+### Auto-deploy on every push (optional)
+
+`.github/workflows/deploy.yml` ships every push to the default branch to the VPS over Tailscale SSH (pull, rebuild, `compose up`). It stays dormant until these repo secrets exist:
+
+| Secret | Value |
+|---|---|
+| `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_SECRET` | Tailscale OAuth client (`auth_keys` scope, tag `tag:ci`) — from the Tailscale admin OAuth page |
+| `VPS_HOST` | the server's **tailnet IP or MagicDNS name** (update this when you replace the server) |
+| `VPS_USER` | SSH user (e.g. `root`) |
+| `VPS_SSH_KEY` | a private deploy key whose public half is in the server's `authorized_keys` |
 
 ## License
 

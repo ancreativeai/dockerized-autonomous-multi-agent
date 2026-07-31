@@ -196,3 +196,10 @@ Because the repo holds everything and only runtime state lives on the server, sw
 ## License
 
 Private project. All third-party components retain their own licenses (OpenClaw, llama.cpp, LangGraph, Chroma, Hermes 3 weights per NousResearch's license).
+
+## Documentation
+
+Operational guides live in [`docs/`](docs/):
+
+- [Overview](docs/README.md) · [Quick Start](docs/quick-start.md) · [Networking / Tailscale](docs/networking-guide.md)
+- [Operations & Troubleshooting](docs/agent-stack-guide.md) · [Architecture](docs/architecture.md) · [Troubleshooting](docs/troubleshooting.md)

@@ -18,8 +18,8 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openrouter/nvidia/nemotron-3-super-120b-a12b:free",
-        "fallbacks": ["openrouter/meta-llama/llama-3.3-70b-instruct:free", "hermes/hermes"]
+        "primary": "anthropic/claude-opus-4-8",
+        "fallbacks": ["openrouter/nvidia/nemotron-3-super-120b-a12b:free", "openrouter/meta-llama/llama-3.3-70b-instruct:free", "hermes/hermes"]
       },
       "workspace": "/app/workspaces/openclaw",
       "compaction": {

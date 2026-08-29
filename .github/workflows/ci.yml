@@ -32,7 +32,7 @@ jobs:
           docker compose config --quiet
 
       - name: Dockerfiles lint (hadolint, non-blocking)
-        uses: hadolint/hadolint-action@v3.3.0
+        uses: hadolint/hadolint-action@v3.5.0
         with:
           dockerfile: Dockerfile.openclaw
           no-fail: true
